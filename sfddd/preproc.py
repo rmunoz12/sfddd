@@ -6,6 +6,7 @@ import cv2
 import numpy as np
 import pandas as pd
 from sklearn.cross_validation import LabelKFold
+from sklearn.utils import shuffle
 
 logger = logging.getLogger(__name__)
 
@@ -59,7 +60,7 @@ def load_train(imgs_folder, drivers_path):
     logger.info("Y shape: (%d,)" % Y.shape)
 
     logger.info("Splitting local validation set")
-
+    X, Y, D = shuffle(X, Y, D)
     cv = LabelKFold(D, 10)
     index_s, index_t = next(iter(cv))
     Xs, Xt = X[index_s], X[index_t]

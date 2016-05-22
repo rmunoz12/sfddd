@@ -31,7 +31,7 @@ def testbatch_iterator(inputs, batchsize):
         yield inputs[excerpt]
 
 
-def train(Xs, Ys, Xv, Yv, size_x=SIZE_X, size_y=SIZE_Y, epochs=3,
+def train(Xs, Ys, Xv, Yv, size_x=SIZE_X, size_y=SIZE_Y, epochs=10,
           batchsize=DEFAULT_BATCHSIZE):
     input_var = T.tensor4('inputs')
     target_var = T.ivector('targets')
