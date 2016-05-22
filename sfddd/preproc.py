@@ -4,7 +4,8 @@ import os
 
 import cv2
 import numpy as np
-from sklearn.cross_validation import StratifiedShuffleSplit
+import pandas as pd
+from sklearn.cross_validation import LabelKFold
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +14,7 @@ SIZE_X = 128
 SIZE_Y = SIZE_X
 
 
-def get_training_images(folder, pattern="*.jpg"):
+def get_training_images(folder, drivers, pattern="*.jpg"):
     logger.info("loading training images in: %s" % folder)
     for root, _, fns in os.walk(folder):
         for f in fnmatch.filter(fns, pattern):
@@ -21,7 +22,8 @@ def get_training_images(folder, pattern="*.jpg"):
             lbl = os.path.split(root)[1][-1]
             img = cv2.imread(os.path.join(root, f), cv2.IMREAD_GRAYSCALE)
             img = cv2.resize(img, (SIZE_X, SIZE_Y))
-            yield img, lbl
+            driver = drivers[f]
+            yield img, lbl, driver
 
 
 def get_test_images(folder, pattern="*.jpg"):
@@ -33,12 +35,21 @@ def get_test_images(folder, pattern="*.jpg"):
             yield img, f
 
 
-def load_train(imgs_folder, cache_folder=None, test_size=0.1, seed=700):
-    X, Y = [], []
+def load_drivers(path):
+    df = pd.read_csv(path)
+    drivers = {fn: d for fn, d in zip(df['img'], df['subject'])}
+    return drivers
+
+
+def load_train(imgs_folder, drivers_path):
+    drivers = load_drivers(drivers_path)
+
+    X, Y, D = [], [], []
     path = os.path.join(imgs_folder, 'train')
-    for img, lbl in get_training_images(path):
+    for img, lbl, driver in get_training_images(path, drivers):
         X.append(img)
         Y.append(lbl)
+        D.append(driver)
     logger.info("Loaded %d images" % len(Y))
 
     X = np.array(X).astype('float32') / 255
@@ -47,12 +58,12 @@ def load_train(imgs_folder, cache_folder=None, test_size=0.1, seed=700):
     logger.info("X shape: (%d, %d, %d, %d)" % X.shape)
     logger.info("Y shape: (%d,)" % Y.shape)
 
-    logger.info("Splitting local validation set: %.2f%%" % test_size)
-    sss = StratifiedShuffleSplit(Y, n_iter=1, test_size=test_size,
-                                 random_state=seed)
-    for index_s, index_t in sss:
-        Xs, Xt = X[index_s], X[index_t]
-        Ys, Yt = Y[index_s], Y[index_t]
+    logger.info("Splitting local validation set")
+
+    cv = LabelKFold(D, 10)
+    index_s, index_t = next(iter(cv))
+    Xs, Xt = X[index_s], X[index_t]
+    Ys, Yt = Y[index_s], Y[index_t]
 
     return Xs, Ys, Xt, Yt
 

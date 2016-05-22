@@ -13,7 +13,6 @@ def save_submission(pred, test_fnames, sample_submission, folder):
     with open(sample_submission, 'rb') as hfile:
         rdr = csv.reader(hfile)
         header = rdr.next()
-    logger.info("header: %s" % header)
 
     timestamp = time.strftime("%Y-%m-%d-%H%M", time.localtime())
     out_path = os.path.join(folder, 'submission-%s.csv' % timestamp)
