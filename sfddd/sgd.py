@@ -6,7 +6,7 @@ import numpy as np
 import theano
 import theano.tensor as T
 
-from .models.test import test_cnn
+from sfddd import models
 from .preproc import SIZE_X, SIZE_Y
 
 logger = logging.getLogger(__name__)
@@ -37,7 +37,7 @@ def train(Xs, Ys, Xv, Yv, size_x=SIZE_X, size_y=SIZE_Y, epochs=10,
     target_var = T.ivector('targets')
 
     logger.info("Compiling network functions...")
-    network = test_cnn(size_x, size_y, input_var)
+    network = models.test_cnn(size_x, size_y, input_var)
     prediction = lasagne.layers.get_output(network)
     loss = lasagne.objectives.categorical_crossentropy(prediction, target_var)
     loss = loss.mean()
