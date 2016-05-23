@@ -1,4 +1,7 @@
+import cPickle
+import gzip
 import logging
+import os
 import time
 
 import lasagne
@@ -15,20 +18,32 @@ DEFAULT_BATCHSIZE = 32
 LEARNING_RATE = 0.001
 
 
-def minibatch_iterator(inputs, targets, batchsize):
-    """Based on Lasagne documentation"""
+def load_img_batch(fnames, cache_folder='cache/train/'):
+    X = []
+    for fn in fnames:
+        with gzip.open(os.path.join(cache_folder, fn), 'rb') as fi:
+            img = cPickle.load(fi)
+        X.append(img)
+    X = np.array(X).astype('float32')
+    X = X.reshape((-1, 3, SIZE_X, SIZE_Y))
+    return X
+
+
+def minibatch_iterator(inputs, targets, batchsize, cache_folder='cache/train/'):
     assert len(inputs) == len(targets)
     indicies = np.arange(len(inputs))
     np.random.shuffle(indicies)
     for start_idx in range(0, len(inputs) - batchsize + 1, batchsize):
         excerpt = indicies[start_idx:start_idx + batchsize]
-        yield inputs[excerpt], targets[excerpt]
+        X = load_img_batch(inputs[excerpt], cache_folder)
+        yield X, targets[excerpt]
 
 
-def testbatch_iterator(inputs, batchsize):
+def testbatch_iterator(inputs, batchsize, cache_folder='cache/test/'):
     for start_idx in range(0, len(inputs) - batchsize + 1, batchsize):
         excerpt = slice(start_idx, start_idx + batchsize)
-        yield inputs[excerpt]
+        X = load_img_batch(inputs[excerpt], cache_folder)
+        yield X
 
 
 def train(Xs, Ys, Xv, Yv, size_x=SIZE_X, size_y=SIZE_Y, epochs=10,
@@ -37,15 +52,18 @@ def train(Xs, Ys, Xv, Yv, size_x=SIZE_X, size_y=SIZE_Y, epochs=10,
     target_var = T.ivector('targets')
 
     logger.info("Compiling network functions...")
-    network = models.test_cnn(size_x, size_y, input_var)
-    prediction = lasagne.layers.get_output(network)
+    net = models.test_cnn(size_x, size_y, input_var)
+    # net = models.vgg16()
+
+
+    prediction = lasagne.layers.get_output(net)
     loss = lasagne.objectives.categorical_crossentropy(prediction, target_var)
     loss = loss.mean()
 
-    params = lasagne.layers.get_all_params(network, trainable=True)
+    params = lasagne.layers.get_all_params(net, trainable=True)
     updates = lasagne.updates.adam(loss, params, learning_rate=LEARNING_RATE)
 
-    test_prediction = lasagne.layers.get_output(network, deterministic=True)
+    test_prediction = lasagne.layers.get_output(net, deterministic=True)
     test_loss = lasagne.objectives.\
                     categorical_crossentropy(test_prediction, target_var)
     test_loss = test_loss.mean()

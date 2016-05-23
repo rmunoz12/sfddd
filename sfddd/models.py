@@ -1,10 +1,12 @@
+import pickle
+
 import lasagne
 from lasagne.layers import InputLayer, Conv2DLayer, MaxPool2DLayer, \
-    DenseLayer, dropout
+    DenseLayer, DropoutLayer, dropout, NonlinearityLayer
 
 
 def test_cnn(size_x, size_y, input_var=None):
-    net = InputLayer(shape=(None, 1, size_x, size_y),
+    net = InputLayer(shape=(None, 3, size_x, size_y),
                      input_var=input_var)
     net = Conv2DLayer(net,
                       num_filters=32,
@@ -25,4 +27,40 @@ def test_cnn(size_x, size_y, input_var=None):
     net = DenseLayer(dropout(net, p=.5),
                      num_units=10,
                      nonlinearity=lasagne.nonlinearities.softmax)
+    return net
+
+
+def vgg16(w_path='data/vgg16.pkl'):
+    net = InputLayer((None, 3, 224, 224))
+    net = Conv2DLayer(net, 64, 3, pad=1, flip_filters=False)
+    net = Conv2DLayer(net, 64, 3, pad=1, flip_filters=False)
+    net = MaxPool2DLayer(net, 2)
+    net = Conv2DLayer(net, 128, 3, pad=1, flip_filters=False)
+    net = Conv2DLayer(net, 128, 3, pad=1, flip_filters=False)
+    net = MaxPool2DLayer(net, 2)
+    net = Conv2DLayer(net, 256, 3, pad=1, flip_filters=False)
+    net = Conv2DLayer(net, 256, 3, pad=1, flip_filters=False)
+    net = Conv2DLayer(net, 256, 3, pad=1, flip_filters=False)
+    net = MaxPool2DLayer(net, 2)
+    net = Conv2DLayer(net, 512, 3, pad=1, flip_filters=False)
+    net = Conv2DLayer(net, 512, 3, pad=1, flip_filters=False)
+    net = Conv2DLayer(net, 512, 3, pad=1, flip_filters=False)
+    net = MaxPool2DLayer(net, 2)
+    net = Conv2DLayer(net, 512, 3, pad=1, flip_filters=False)
+    net = Conv2DLayer(net, 512, 3, pad=1, flip_filters=False)
+    net = Conv2DLayer(net, 512, 3, pad=1, flip_filters=False)
+    net = MaxPool2DLayer(net, 2)
+    net = DenseLayer(net, num_units=4096)
+    net = DropoutLayer(net, p=0.5)
+    net = DenseLayer(net, num_units=4096)
+    dp_final = DropoutLayer(net, p=0.5)
+    fc_final = DenseLayer(dp_final, num_units=1000, nonlinearity=None)
+    out_layer = NonlinearityLayer(fc_final, lasagne.nonlinearities.softmax)
+
+    mdl = pickle.load(open(w_path, 'rb'))
+    lasagne.layers.set_all_param_values(out_layer, mdl['param values'])
+
+    net = DenseLayer(dp_final, num_units=10, nonlinearity=None)
+    net = NonlinearityLayer(net, lasagne.nonlinearities.softmax)
+
     return net
