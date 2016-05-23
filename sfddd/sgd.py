@@ -47,7 +47,8 @@ def testbatch_iterator(inputs, batchsize, cache_folder='cache/test/'):
 
 
 def train(Xs, Ys, Xv, Yv, size_x=SIZE_X, size_y=SIZE_Y, epochs=10,
-          batchsize=DEFAULT_BATCHSIZE):
+          batchsize=DEFAULT_BATCHSIZE, cache_folder='cache/'):
+    cache_folder = os.path.join(cache_folder, 'train/')
     input_var = T.tensor4('inputs')
     target_var = T.ivector('targets')
 
@@ -77,13 +78,13 @@ def train(Xs, Ys, Xv, Yv, size_x=SIZE_X, size_y=SIZE_Y, epochs=10,
     for epoch in range(epochs):
         start_time = time.time()
         train_err, train_batches = 0, 0
-        for batch in minibatch_iterator(Xs, Ys, batchsize):
+        for batch in minibatch_iterator(Xs, Ys, batchsize, cache_folder):
             inputs, targets = batch
             train_err += train_fn(inputs, targets)
             train_batches += 1
 
         val_err, val_acc, val_batches = 0, 0, 0
-        for batch in minibatch_iterator(Xv, Yv, batchsize):
+        for batch in minibatch_iterator(Xv, Yv, batchsize, cache_folder):
             inputs, targets = batch
             err, acc = val_fn(inputs, targets)
             val_err += err
@@ -101,10 +102,11 @@ def train(Xs, Ys, Xv, Yv, size_x=SIZE_X, size_y=SIZE_Y, epochs=10,
     return predict_proba
 
 
-def predict(Xt, pred_fn, batchsize=2):
+def predict(Xt, pred_fn, batchsize=2, cache_folder='cache/'):
+    cache_folder = os.path.join(cache_folder, 'test/')
     logger.info('Predicting on test set...')
     pred = []
-    for batch in testbatch_iterator(Xt, batchsize):
+    for batch in testbatch_iterator(Xt, batchsize, cache_folder):
         pred.extend(pred_fn(batch))
     pred = np.array(pred)
     logger.info('pred shape: (%d, %d)' % pred.shape)

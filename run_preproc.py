@@ -17,7 +17,8 @@ def main():
     drivers_path = os.path.join(config.paths.data_folder,
                                 'driver_imgs_list.csv')
 
-    Xs, Ys, Xv, Yv = load_train(imgs_folder, drivers_path)
+    Xs, Ys, Xv, Yv = load_train(imgs_folder, drivers_path,
+                                config.paths.cache_folder)
     names = ['Xs', 'Ys', 'Xv', 'Yv']
     for name, obj in zip(names, [Xs, Ys, Xv, Yv]):
         fn = name + '.pkl'
@@ -25,7 +26,7 @@ def main():
             cPickle.dump(obj, fo)
     logger.info('Cached training and validation data')
 
-    Xt, test_fnames = load_test(imgs_folder)
+    Xt, test_fnames = load_test(imgs_folder, config.paths.cache_folder)
     names = ['Xt', 'test_fnames']
     for name, obj in zip(names, [Xt, test_fnames]):
         fn = name + '.pkl'

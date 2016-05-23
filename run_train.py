@@ -25,7 +25,6 @@ def main():
             data[name] = cPickle.load(fi)
     pred_fn = train(data['Xs'], data['Ys'], data['Xv'], data['Yv'])
 
-
     pred = predict(data['Xt'], pred_fn)
     save_submission(pred, data['test_fnames'], sample_submission,
                     config.paths.out_folder)
