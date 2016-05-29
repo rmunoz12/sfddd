@@ -11,6 +11,7 @@ import theano.tensor as T
 
 from sfddd import models
 from .preproc import SIZE_X, SIZE_Y
+from .util import gpu_free_mem
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +50,8 @@ def testbatch_iterator(inputs, batchsize, cache_folder='cache/test/'):
 
 def train(Xs, Ys, Xv, Yv, size_x=SIZE_X, size_y=SIZE_Y, epochs=10,
           batchsize=DEFAULT_BATCHSIZE, cache_folder='cache/'):
+    logger.info('GPU Free Mem: %.3f' % gpu_free_mem('gb'))
+
     cache_folder = os.path.join(cache_folder, 'train/')
     input_var = T.tensor4('inputs')
     target_var = T.ivector('targets')
@@ -76,6 +79,8 @@ def train(Xs, Ys, Xv, Yv, size_x=SIZE_X, size_y=SIZE_Y, epochs=10,
     val_fn = theano.function([input_var, target_var], [test_loss, test_acc])
     predict_proba = theano.function([input_var], test_prediction)
 
+    logger.info("Training...")
+    logger.info('GPU Free Mem: %.3f' % gpu_free_mem('gb'))
     for epoch in range(epochs):
         start_time = time.time()
         train_err, train_batches = 0, 0
