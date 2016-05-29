@@ -19,9 +19,10 @@ LEARNING_RATE = 0.001
 
 
 def load_img_batch(fnames, cache_folder='cache/train/'):
+    ext = '.pkl.gzip'
     X = []
     for fn in fnames:
-        with gzip.open(os.path.join(cache_folder, fn), 'rb') as fi:
+        with gzip.open(os.path.join(cache_folder, fn + ext), 'rb') as fi:
             img = cPickle.load(fi)
         X.append(img)
     X = np.array(X).astype('float32')
@@ -53,8 +54,8 @@ def train(Xs, Ys, Xv, Yv, size_x=SIZE_X, size_y=SIZE_Y, epochs=10,
     target_var = T.ivector('targets')
 
     logger.info("Compiling network functions...")
-    net = models.test_cnn(size_x, size_y, input_var)
-    # net = models.vgg16()
+    # net = models.test_cnn(size_x, size_y, input_var)
+    net = models.vgg16(input_var)
 
 
     prediction = lasagne.layers.get_output(net)

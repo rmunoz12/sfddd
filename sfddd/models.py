@@ -1,8 +1,11 @@
+import logging
 import pickle
 
 import lasagne
 from lasagne.layers import InputLayer, Conv2DLayer, MaxPool2DLayer, \
     DenseLayer, DropoutLayer, dropout, NonlinearityLayer
+
+logger = logging.getLogger(__name__)
 
 
 def test_cnn(size_x, size_y, input_var=None):
@@ -30,8 +33,8 @@ def test_cnn(size_x, size_y, input_var=None):
     return net
 
 
-def vgg16(w_path='data/vgg16.pkl'):
-    net = InputLayer((None, 3, 224, 224))
+def vgg16(input_var=None, w_path='data/vgg16.pkl'):
+    net = InputLayer((None, 3, 224, 224), input_var=input_var)
     net = Conv2DLayer(net, 64, 3, pad=1, flip_filters=False)
     net = Conv2DLayer(net, 64, 3, pad=1, flip_filters=False)
     net = MaxPool2DLayer(net, 2)
@@ -57,6 +60,7 @@ def vgg16(w_path='data/vgg16.pkl'):
     fc_final = DenseLayer(dp_final, num_units=1000, nonlinearity=None)
     out_layer = NonlinearityLayer(fc_final, lasagne.nonlinearities.softmax)
 
+    logger.info("Loading vgg16 weights...")
     mdl = pickle.load(open(w_path, 'rb'))
     lasagne.layers.set_all_param_values(out_layer, mdl['param values'])
 

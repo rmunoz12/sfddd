@@ -96,7 +96,7 @@ def load_train(imgs_folder, drivers_path, cache_folder="cache/"):
     X = np.array(X)
     Y = np.array(Y).astype('int32')
     # logger.info("X shape: (%d, %d, %d, %d)" % X.shape)
-    logger.info("X shape: (%d, %d)" % X.shape)
+    logger.info("X shape: (%d,)" % X.shape)
     logger.info("Y shape: (%d,)" % Y.shape)
 
     logger.info("Splitting local validation set")
@@ -130,7 +130,7 @@ def load_test(imgs_folder, cache_folder='cache/'):
     X = np.array(X)
     fnames = np.array(fnames)
     # logger.info("Xt shape: (%d, %d, %d, %d)" % X.shape)
-    logger.info("Xt shape: (%d, %d)" % X.shape)
+    logger.info("Xt shape: (%d,)" % X.shape)
     logger.info("fnames shape: (%d,)" % fnames.shape)
 
     return X, fnames

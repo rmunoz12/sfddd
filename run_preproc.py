@@ -22,7 +22,7 @@ def main():
     names = ['Xs', 'Ys', 'Xv', 'Yv']
     for name, obj in zip(names, [Xs, Ys, Xv, Yv]):
         fn = name + '.pkl'
-        with gzip.open(os.path.join(config.paths.cache_folder, fn)) as fo:
+        with gzip.open(os.path.join(config.paths.cache_folder, fn), 'wb') as fo:
             cPickle.dump(obj, fo)
     logger.info('Cached training and validation data')
 
