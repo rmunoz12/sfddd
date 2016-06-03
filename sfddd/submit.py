@@ -22,7 +22,7 @@ def save_submission(pred, test_fnames, sample_submission, folder,
         fn += '-%.3f' % acc
     if loss:
         fn += '-%.3f' % loss
-    fn += 'csv.gz'
+    fn += '.csv.gz'
     out_path = os.path.join(folder, fn)
     with gzip.open(out_path, 'wb') as fo:
         fo.write(','.join(header) + '\n')
