@@ -8,6 +8,7 @@ import lasagne
 import numpy as np
 import theano
 import theano.tensor as T
+from tqdm import tqdm
 
 from sfddd import models
 from .preproc import SIZE_X, SIZE_Y
@@ -16,7 +17,7 @@ from .util import gpu_free_mem
 logger = logging.getLogger(__name__)
 
 DEFAULT_BATCHSIZE = 32
-LEARNING_RATE = 0.001
+LEARNING_RATE = 0.0001
 
 
 def load_img_batch(fnames, cache_folder='cache/train/'):
@@ -35,14 +36,14 @@ def minibatch_iterator(inputs, targets, batchsize, cache_folder='cache/train/'):
     assert len(inputs) == len(targets)
     indicies = np.arange(len(inputs))
     np.random.shuffle(indicies)
-    for start_idx in range(0, len(inputs) - batchsize + 1, batchsize):
+    for start_idx in tqdm(range(0, len(inputs) - batchsize + 1, batchsize)):
         excerpt = indicies[start_idx:start_idx + batchsize]
         X = load_img_batch(inputs[excerpt], cache_folder)
         yield X, targets[excerpt]
 
 
 def testbatch_iterator(inputs, batchsize, cache_folder='cache/test/'):
-    for start_idx in range(0, len(inputs) - batchsize + 1, batchsize):
+    for start_idx in tqdm(range(0, len(inputs) - batchsize + 1, batchsize)):
         excerpt = slice(start_idx, start_idx + batchsize)
         X = load_img_batch(inputs[excerpt], cache_folder)
         yield X
@@ -50,7 +51,7 @@ def testbatch_iterator(inputs, batchsize, cache_folder='cache/test/'):
 
 def train(Xs, Ys, Xv, Yv, size_x=SIZE_X, size_y=SIZE_Y, epochs=10,
           batchsize=DEFAULT_BATCHSIZE, cache_folder='cache/'):
-    logger.info('GPU Free Mem: %.3f' % gpu_free_mem('gb'))
+    logger.info('GPU Free Mem: %.3fGB' % gpu_free_mem('gb'))
 
     cache_folder = os.path.join(cache_folder, 'train/')
     input_var = T.tensor4('inputs')
