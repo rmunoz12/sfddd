@@ -50,11 +50,16 @@ def augment_batch(X):
     for i in range(len(X)):
         img = X[i]
         img = np.transpose(img, (1, 2, 0))
+        h, w = img.shape[:2]
 
         img = rand_scale(img)
         img = rand_translate(img)
         img = rand_rotate(img)
 
+        method = cv2.INTER_LINEAR
+        if img.shape[0] < 224:
+            method = cv2.INTER_AREA
+        img = cv2.resize(img, (w, h), interpolation=method)
         img = np.transpose(img, (2, 0, 1))
         X[i] = img
     return X
