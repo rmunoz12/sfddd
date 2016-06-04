@@ -49,7 +49,7 @@ def testbatch_iterator(inputs, batchsize, cache_folder='cache/test/'):
         yield X
 
 
-def train(Xs, Ys, Xv, Yv, size_x=SIZE_X, size_y=SIZE_Y, epochs=10,
+def train(Xs, Ys, Xv, Yv, size_x=SIZE_X, size_y=SIZE_Y, epochs=2,
           batchsize=DEFAULT_BATCHSIZE, cache_folder='cache/'):
     logger.info('GPU Free Mem: %.3fGB' % gpu_free_mem('gb'))
 
@@ -82,6 +82,9 @@ def train(Xs, Ys, Xv, Yv, size_x=SIZE_X, size_y=SIZE_Y, epochs=10,
 
     logger.info("Training...")
     logger.info('GPU Free Mem: %.3f' % gpu_free_mem('gb'))
+
+    best_val_loss, best_epoch = None, None
+
     for epoch in range(epochs):
         start_time = time.time()
         train_err, train_batches = 0, 0
@@ -103,8 +106,18 @@ def train(Xs, Ys, Xv, Yv, size_x=SIZE_X, size_y=SIZE_Y, epochs=10,
         val_acc = val_acc / val_batches * 100
         end_time = time.time() - start_time
 
+        if not best_val_loss or val_loss < best_val_loss:
+            best_val_loss = val_loss
+            best_epoch = epoch
+            np.savez('out/model.npz', *lasagne.layers.get_all_param_values(net))
+
         logger.info("epoch[%d] -- Ls: %.3f | Lv: %.3f | ACCv: %.3f | Ts: %.3f"
                     % (epoch, train_loss, val_loss, val_acc, end_time))
+
+    logger.info("loading best model: epoch[%d]" % best_epoch)
+    with np.load('out/model.npz') as f:
+        param_values = [f['arr_%d' % i] for i in range(len(f.files))]
+    lasagne.layers.set_all_param_values(net, param_values)
 
     return predict_proba
 
