@@ -4,6 +4,7 @@ import logging
 import os
 import time
 
+import cv2
 import lasagne
 import numpy as np
 import theano
@@ -20,7 +21,46 @@ DEFAULT_BATCHSIZE = 32
 LEARNING_RATE = 0.0001
 
 
-def load_img_batch(fnames, cache_folder='cache/train/'):
+def rand_rotate(img, low=-20, high=20):
+    h, w = img.shape[:2]
+    center = (w / 2, h / 2)
+    M = cv2.getRotationMatrix2D(center, np.random.uniform(low, high), 1)
+    img = cv2.warpAffine(img, M, (w, h))
+    return img
+
+
+def rand_translate(img, low=-4, high=4):
+    h, w = img.shape[:2]
+    shift_x, shift_y = np.random.randint(low, high + 1, size=2)
+    M = np.float32([[1, 0, shift_x], [0, 1, shift_y]])
+    img = cv2.warpAffine(img, M, (w, h))
+    return img
+
+
+def rand_scale(img, low=0.8, high=1.2):
+    factor = np.random.uniform(low, high)
+    method = cv2.INTER_LINEAR
+    if factor < 1:
+        method = cv2.INTER_AREA
+    img = cv2.resize(img, None, fx=factor, fy=factor, interpolation=method)
+    return img
+
+
+def augment_batch(X):
+    for i in range(len(X)):
+        img = X[i]
+        img = np.transpose(img, (1, 2, 0))
+
+        img = rand_scale(img)
+        img = rand_translate(img)
+        img = rand_rotate(img)
+
+        img = np.transpose(img, (2, 0, 1))
+        X[i] = img
+    return X
+
+
+def load_img_batch(fnames, cache_folder='cache/train/', augment=False):
     ext = '.pkl.gzip'
     X = []
     for fn in fnames:
@@ -29,16 +69,19 @@ def load_img_batch(fnames, cache_folder='cache/train/'):
         X.append(img)
     X = np.array(X).astype('float32')
     X = X.reshape((-1, 3, SIZE_X, SIZE_Y))
+    if augment:
+        X = augment_batch(X)
     return X
 
 
-def minibatch_iterator(inputs, targets, batchsize, cache_folder='cache/train/'):
+def minibatch_iterator(inputs, targets, batchsize, cache_folder='cache/train/',
+                       augment=False):
     assert len(inputs) == len(targets)
     indicies = np.arange(len(inputs))
     np.random.shuffle(indicies)
     for start_idx in tqdm(range(0, len(inputs) - batchsize + 1, batchsize)):
         excerpt = indicies[start_idx:start_idx + batchsize]
-        X = load_img_batch(inputs[excerpt], cache_folder)
+        X = load_img_batch(inputs[excerpt], cache_folder, augment=augment)
         yield X, targets[excerpt]
 
 
@@ -88,7 +131,7 @@ def train(Xs, Ys, Xv, Yv, size_x=SIZE_X, size_y=SIZE_Y, epochs=2,
     for epoch in range(epochs):
         start_time = time.time()
         train_err, train_batches = 0, 0
-        for batch in minibatch_iterator(Xs, Ys, batchsize, cache_folder):
+        for batch in minibatch_iterator(Xs, Ys, batchsize, cache_folder, True):
             inputs, targets = batch
             train_err += train_fn(inputs, targets)
             train_batches += 1
