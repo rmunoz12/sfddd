@@ -5,6 +5,7 @@ import gzip
 import logging
 import os
 
+import cv2
 from lasagne.utils import floatX
 import matplotlib.image
 import numpy as np
@@ -25,23 +26,29 @@ SIZE_Y = SIZE_X
 
 # based on https://github.com/Lasagne/Recipes/blob/master/examples/ImageNet%20Pretrained%20Network%20(VGG_S).ipynb
 def preproc_img(path):
-    # img = cv2.imread(path, cv2.IMREAD_COLOR)
-    img = matplotlib.image.imread(path)
-    h, w, _ = img.shape
-    img = skimage.transform.resize(img, (256, w * 256 // h),
-                                   preserve_range=True)
+    img = cv2.imread(path, cv2.IMREAD_COLOR)
+    img = cv2.resize(img, (480, 480), interpolation=cv2.INTER_AREA)
+    img = np.transpose(img, (2, 0, 1))
+
+    # img = matplotlib.image.imread(path)
+    # h, w, _ = img.shape
+    # img = skimage.transform.resize(img, (480, w * 480 // h),
+    #                                preserve_range=True)
+    #
+
 
     # Central crop to 224x224
-    h, w, _ = img.shape
-    img = img[h//2-112:h//2+112, w//2-112:w//2+112]
+    # h, w, _ = img.shape
+    # img = img[h//2-112:h//2+112, w//2-112:w//2+112]
 
-    rawimg = np.copy(img).astype('uint8')
+    # rawimg = np.copy(img).astype('uint8')
 
     # Shuffle axes to c01
-    img = np.swapaxes(np.swapaxes(img, 1, 2), 0, 1)
+    # img = np.swapaxes(np.swapaxes(img, 1, 2), 0, 1)
 
     # Convert to BGR
-    img = img[::-1, :, :]
+    # img = img[::-1, :, :]
+
     img = img - MEAN_VALUE
     return floatX(img[np.newaxis])
 
