@@ -1,6 +1,7 @@
 import cPickle
 import gzip
 import logging
+import math
 import os
 import time
 
@@ -18,14 +19,42 @@ from .util import gpu_free_mem
 logger = logging.getLogger(__name__)
 
 DEFAULT_BATCHSIZE = 32
-LEARNING_RATE = 0.0001
+LEARNING_RATE = 0.00001
 
 
-def rand_rotate(img, low=-20, high=20):
-    h, w = img.shape[:2]
-    center = (w / 2, h / 2)
-    M = cv2.getRotationMatrix2D(center, np.random.uniform(low, high), 1)
-    img = cv2.warpAffine(img, M, (w, h))
+def rand_rotate(img, low=-10, high=10):
+    """ Rotate and crop out """
+    alpha = np.random.uniform(low, high)
+    rad = math.fabs(alpha) * (math.pi / 180)
+
+    h0, w0 = img.shape[:2]
+    center = (w0 / 2, h0 / 2)
+
+    h1 = h0 * math.cos(rad) + w0 * math.sin(rad)
+    w1 = w0 * math.cos(rad) + h0 * math.sin(rad)
+
+    ar = float(w0) / h0
+    ar_rot = w1 / h1
+    if ar < 1:
+        t = float(w0) / ar_rot
+    else:
+        t = float(h0)
+
+    Mr = cv2.getRotationMatrix2D(center, alpha, 1)
+    shift_x = w1 / 2 - center[0]
+    shift_y = h1 / 2 - center[1]
+    Mr[0, 2] += shift_x
+    Mr[1, 2] += shift_y
+
+    img = cv2.warpAffine(img, Mr, (int(w1), int(h1)))
+
+    h2 = t / (ar * math.sin(rad) + math.cos(rad))
+    w2 = h2 * ar
+
+    x, y = int(w1) / 2, int(h1) /2
+    x -= int(w2 / 2)
+    y -= int(h2 / 2)
+    img = img[y:y + int(h2), x:x + int(w2)]
     return img
 
 
@@ -50,16 +79,14 @@ def augment_batch(X):
     for i in range(len(X)):
         img = X[i]
         img = np.transpose(img, (1, 2, 0))
-        h, w = img.shape[:2]
 
         img = rand_scale(img)
         img = rand_translate(img)
         img = rand_rotate(img)
 
-        method = cv2.INTER_LINEAR
-        if img.shape[0] < 224:
-            method = cv2.INTER_AREA
-        img = cv2.resize(img, (w, h), interpolation=method)
+        img = cv2.resize(img, (256, 256))
+        h, w, _ = img.shape
+        img = img[h//2-112:h//2+112, w//2-112:w//2+112]
         img = np.transpose(img, (2, 0, 1))
         X[i] = img
     return X
@@ -97,7 +124,7 @@ def testbatch_iterator(inputs, batchsize, cache_folder='cache/test/'):
         yield X
 
 
-def train(Xs, Ys, Xv, Yv, size_x=SIZE_X, size_y=SIZE_Y, epochs=2,
+def train(Xs, Ys, Xv, Yv, size_x=SIZE_X, size_y=SIZE_Y, epochs=5,
           batchsize=DEFAULT_BATCHSIZE, cache_folder='cache/'):
     logger.info('GPU Free Mem: %.3fGB' % gpu_free_mem('gb'))
 
