@@ -29,11 +29,16 @@ class Solver(object):
 
 class SGDSolver(Solver):
 
+    # TODO apply updates only at iter_size
+    # TODO track updates:weights ratios
+
     def __init__(self, max_iter, batch_size, iter_size, base_lr):
         super(SGDSolver, self).__init__(max_iter, batch_size, iter_size,
                                         base_lr)
 
-    def train(self, Xs, Ys, Xv, Yv, mdl, data_folder='data/'):
+    def train(self, Xs, Ys, Xv, Yv, mdl,
+              data_folder='data/', out_folder='out/'):
+
         data_folder = os.path.join(data_folder, 'imgs/', 'train/')
         input_var = mdl.input_var
         net = mdl.get_output_layer()
@@ -61,10 +66,13 @@ class SGDSolver(Solver):
         logger.info("Training...")
         logger.info('GPU Free Mem: %.3f' % gpu_free_mem('gb'))
 
+        # TODO change to steps
+        epochs = self.max_iter / len(Xs)
 
         best_val_loss, best_epoch = None, None
-
-        epochs = self.max_iter / len(Xs)  # TODO change to steps
+        best_mdl_path = os.path.join(out_folder, 'best_model.npz')
+        if not os.path.exists(out_folder):
+            os.makedirs(out_folder)
 
         for epoch in range(epochs):
             start_time = time.time()
@@ -96,17 +104,17 @@ class SGDSolver(Solver):
             if not best_val_loss or val_loss < best_val_loss:
                 best_val_loss = val_loss
                 best_epoch = epoch
-
-                if not os.path.exists('out/'):
-                    os.makedirs('out/')
-
-                np.savez('out/model.npz', *lasagne.layers.get_all_param_values(net))
+                np.savez(best_mdl_path,
+                         *lasagne.layers.get_all_param_values(net))
+            snapshot_path = os.path.join(out_folder, 'snapshot_epoch_%d.npz'
+                                         % epoch)
+            np.savez(snapshot_path, *lasagne.layers.get_all_param_values(net))
 
             logger.info("epoch[%d] -- Ls: %.3f | Lv: %.3f | ACCv: %.3f | Ts: %.3f"
                         % (epoch, train_loss, val_loss, val_acc, end_time))
 
         logger.info("loading best model: epoch[%d]" % best_epoch)
-        with np.load('out/model.npz') as f:
+        with np.load(best_mdl_path) as f:
             param_values = [f['arr_%d' % i] for i in range(len(f.files))]
         lasagne.layers.set_all_param_values(net, param_values)
 
