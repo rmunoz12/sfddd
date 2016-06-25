@@ -11,8 +11,6 @@ from lasagne.layers.normalization import batch_norm
 from lasagne.nonlinearities import softmax
 from lasagne.utils import floatX
 import numpy as np
-import skimage.transform
-from tqdm import tqdm
 
 logger = logging.getLogger(__name__)
 
