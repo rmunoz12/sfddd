@@ -3,8 +3,11 @@ import gzip
 import logging
 import os
 
+import theano.tensor as T
+
 from config import config
-from sfddd.sgd import train, predict
+from sfddd import models
+from sfddd.sgd import SGDSolver
 from sfddd.submit import save_submission
 from sfddd.util import timed
 
@@ -20,12 +23,26 @@ def main():
     names = ['Xs', 'Ys', 'Xv', 'Yv', 'Xt', 'test_fnames']
     data = {}
     for name in names:
-        fn = name + '.pkl'
+        fn = name + '.pkl.gz'
         with gzip.open(os.path.join(config.paths.cache_folder, fn)) as fi:
             data[name] = cPickle.load(fi)
-    pred_fn = train(data['Xs'], data['Ys'], data['Xv'], data['Yv'])
 
-    pred = predict(data['Xt'], pred_fn)
+    input_var = T.tensor4('inputs')
+
+    if config.model == 'vgg':
+        mdl = models.Vgg16(input_var)
+    elif config.model == 'inc':
+        mdl = models.IncV3(input_var)
+    else:
+        logger.error("Unrecognized model name: %s" % config.model)
+        raise ValueError(config.model)
+
+    solver = SGDSolver(max_iter=len(data['Xs']) * 2,
+                       batch_size=24, iter_size=24, base_lr=0.00001)
+
+    pred_fn = solver.train(data['Xs'], data['Ys'], data['Xv'], data['Yv'], mdl)
+    pred = solver.predict(data['Xt'], pred_fn, mdl)
+
     save_submission(pred, data['test_fnames'], sample_submission,
                     config.paths.out_folder)
 

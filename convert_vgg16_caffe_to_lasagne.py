@@ -26,7 +26,7 @@ from PIL import Image
 import requests
 import theano.tensor as T
 
-from sfddd.models import vgg16_base
+from sfddd.models import Vgg16Base
 from sfddd.preproc import MEAN_VALUE
 
 logging.basicConfig(level=logging.INFO)
@@ -146,7 +146,8 @@ def main():
 
     logger.info('compiling lasagne model...')
     input_var = T.tensor4('inputs')
-    net = vgg16_base(input_var, w_path=None)
+    model = Vgg16Base(input_var, w_path=None)
+    net = Vgg16Base.net
 
     logger.info('converting caffe --> lasagne...')
     convert(net, layers_caffe)

@@ -17,20 +17,23 @@ def main():
     drivers_path = os.path.join(config.paths.data_folder,
                                 'driver_imgs_list.csv')
 
-    Xs, Ys, Xv, Yv = load_train(imgs_folder, drivers_path,
-                                config.paths.cache_folder)
+    cache_folder = config.paths.cache_folder
+    if not os.path.exists(cache_folder) and cache_folder != '':
+        os.makedirs(cache_folder)
+
+    Xs, Ys, Xv, Yv = load_train(imgs_folder, drivers_path)
     names = ['Xs', 'Ys', 'Xv', 'Yv']
     for name, obj in zip(names, [Xs, Ys, Xv, Yv]):
-        fn = name + '.pkl'
-        with gzip.open(os.path.join(config.paths.cache_folder, fn), 'wb') as fo:
+        fn = name + '.pkl.gz'
+        with gzip.open(os.path.join(cache_folder, fn), 'wb') as fo:
             cPickle.dump(obj, fo)
     logger.info('Cached training and validation data')
 
-    Xt, test_fnames = load_test(imgs_folder, config.paths.cache_folder)
+    Xt, test_fnames = load_test(imgs_folder)
     names = ['Xt', 'test_fnames']
     for name, obj in zip(names, [Xt, test_fnames]):
-        fn = name + '.pkl'
-        with gzip.open(os.path.join(config.paths.cache_folder, fn), 'wb') as fo:
+        fn = name + '.pkl.gz'
+        with gzip.open(os.path.join(cache_folder, fn), 'wb') as fo:
             cPickle.dump(obj, fo)
     logger.info('Cached test data')
 
