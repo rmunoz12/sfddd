@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 MEAN_VALUE = np.array([103.939, 116.779, 123.68]).reshape((3, 1, 1))  # BGR
 
 # Reshape images from 640 x 480 to
-SIZE_X = 224
+SIZE_X = 480
 SIZE_Y = SIZE_X
 
 
@@ -53,7 +53,7 @@ def preproc_img(path):
     return floatX(img[np.newaxis])
 
 
-def get_training_images(folder, drivers, pattern="*.jpg"):
+def get_training_images(folder, drivers, pattern="*.jpg", cache_folder="cache/"):
     for root, _, fns in os.walk(folder):
         logger.info("loading training images in: %s" % root)
         matches = fnmatch.filter(fns, pattern)
@@ -61,17 +61,23 @@ def get_training_images(folder, drivers, pattern="*.jpg"):
             # sub-folders are label names cY, with Y = 0-9
             lbl = os.path.split(root)[1][-1]
             img = preproc_img(os.path.join(root, f))
+            fo = gzip.open(os.path.join(cache_folder, f + '.pkl.gzip'), 'wb')
+            cPickle.dump(img, fo)
+            fo.close()
             driver = drivers[f]
-            yield img, lbl, driver, f
+            yield lbl, driver, f
 
 
-def get_test_images(folder, pattern="*.jpg"):
+def get_test_images(folder, pattern="*.jpg", cache_folder="cache/"):
     for root, _, fns in os.walk(folder):
         logger.info("loading test images in: %s" % root)
         matches = fnmatch.filter(fns, pattern)
         for f in tqdm(matches):
             img = preproc_img(os.path.join(root, f))
-            yield img, f
+            fo = gzip.open(os.path.join(cache_folder, f + '.pkl.gzip'), 'wb')
+            cPickle.dump(img, fo)
+            fo.close()
+            yield f
 
 
 def load_drivers(path):
@@ -89,10 +95,10 @@ def load_train(imgs_folder, drivers_path, cache_folder="cache/"):
 
     X, Y, D = [], [], []
     path = os.path.join(imgs_folder, 'train')
-    for img, lbl, driver, fn in get_training_images(path, drivers):
-        fo = gzip.open(os.path.join(cache_folder, fn + '.pkl.gzip'), 'wb')
-        cPickle.dump(img, fo)
-        fo.close()
+    for lbl, driver, fn in get_training_images(path, drivers, cache_folder=cache_folder):
+        # fo = gzip.open(os.path.join(cache_folder, fn + '.pkl.gzip'), 'wb')
+        # cPickle.dump(img, fo)
+        # fo.close()
         X.append(fn)
         Y.append(lbl)
         D.append(driver)
@@ -124,10 +130,10 @@ def load_test(imgs_folder, cache_folder='cache/'):
     X = []
     fnames = []
     path = os.path.join(imgs_folder, 'test')
-    for img, fn in get_test_images(path):
-        fo = gzip.open(os.path.join(cache_folder, fn + '.pkl.gzip'), 'wb')
-        cPickle.dump(img, fo)
-        fo.close()
+    for fn in get_test_images(path, cache_folder=cache_folder):
+        # fo = gzip.open(os.path.join(cache_folder, fn + '.pkl.gzip'), 'wb')
+        # cPickle.dump(img, fo)
+        # fo.close()
         X.append(fn)
         fnames.append(fn)
     logger.info("Loaded %d images" % len(X))

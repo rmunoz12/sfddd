@@ -2,6 +2,7 @@ import cPickle
 import gzip
 import logging
 import math
+from multiprocessing import Pool
 import os
 import time
 
@@ -18,7 +19,7 @@ from .util import gpu_free_mem
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_BATCHSIZE = 32
+DEFAULT_BATCHSIZE = 24
 LEARNING_RATE = 0.00001
 
 
@@ -75,20 +76,37 @@ def rand_scale(img, low=0.8, high=1.2):
     return img
 
 
-def augment_batch(X):
-    for i in range(len(X)):
-        img = X[i]
-        img = np.transpose(img, (1, 2, 0))
+def augment_img(img):
+    img = np.transpose(img, (1, 2, 0))
 
-        img = rand_scale(img)
-        img = rand_translate(img)
-        img = rand_rotate(img)
+    img = rand_scale(img)
+    img = rand_translate(img)
+    img = rand_rotate(img)
 
-        img = cv2.resize(img, (256, 256))
-        h, w, _ = img.shape
-        img = img[h//2-112:h//2+112, w//2-112:w//2+112]
-        img = np.transpose(img, (2, 0, 1))
-        X[i] = img
+    img = cv2.resize(img, (256, 256))
+    h, w, _ = img.shape
+    img = img[h//2-112:h//2+112, w//2-112:w//2+112]
+    img = np.transpose(img, (2, 0, 1))
+    return img
+
+
+def resize_img(img):
+    img = np.transpose(img, (1, 2, 0))
+    img = cv2.resize(img, (256, 256))
+    h, w, _ = img.shape
+    img = img[h//2-112:h//2+112, w//2-112:w//2+112]
+    img = np.transpose(img, (2, 0, 1))
+    return img
+
+
+def augment_batch(X, resize_only=False):
+    p = Pool()
+    if not resize_only:
+        X_new = p.map(augment_img, list(X))
+    else:
+        X_new = p.map(resize_img, list(X))
+    p.terminate()
+    X = X_new
     return X
 
 
@@ -102,7 +120,9 @@ def load_img_batch(fnames, cache_folder='cache/train/', augment=False):
     X = np.array(X).astype('float32')
     X = X.reshape((-1, 3, SIZE_X, SIZE_Y))
     if augment:
-        X = augment_batch(X)
+        X = augment_batch(X, resize_only=False)
+    else:
+        X = augment_batch(X, resize_only=True)
     return X
 
 
@@ -124,7 +144,7 @@ def testbatch_iterator(inputs, batchsize, cache_folder='cache/test/'):
         yield X
 
 
-def train(Xs, Ys, Xv, Yv, size_x=SIZE_X, size_y=SIZE_Y, epochs=5,
+def train(Xs, Ys, Xv, Yv, size_x=SIZE_X, size_y=SIZE_Y, epochs=15,
           batchsize=DEFAULT_BATCHSIZE, cache_folder='cache/'):
     logger.info('GPU Free Mem: %.3fGB' % gpu_free_mem('gb'))
 

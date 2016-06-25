@@ -20,20 +20,17 @@ from StringIO import StringIO
 import caffe
 import cv2
 import lasagne
-from lasagne.layers import DenseLayer, DropoutLayer, InputLayer, \
-    MaxPool2DLayer, NonlinearityLayer
-from lasagne.layers.dnn import Conv2DDNNLayer
 from lasagne.utils import floatX
 import numpy as np
 from PIL import Image
 import requests
-import theano
 import theano.tensor as T
+
+from sfddd.models import vgg16_base
+from sfddd.preproc import MEAN_VALUE
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
-
-MEAN_VALUE = np.array([103.939, 116.779, 123.68]).reshape((3, 1, 1))  # BGR
 
 LABELS = [267, 140, 24, 559, 833, 829, 924, 839, 512, 388]
 SYNSETS = ['n02113799', 'n02027492', 'n01622779', 'n03376595', 'n04347754',
@@ -51,50 +48,6 @@ def get_args():
 
 def get_caffe_net(prototxt_path, caffemodel_path):
     net = caffe.Net(prototxt_path, caffemodel_path, caffe.TEST)
-    return net
-
-
-def get_lasagne_net(input_var=None):
-    net = {}
-    net['input'] = InputLayer((None, 3, 224, 224), input_var=input_var)
-    net['conv1_1'] = Conv2DDNNLayer(net['input'], 64, 3,
-                                 pad=1, flip_filters=False)
-    net['conv1_2'] = Conv2DDNNLayer(net['conv1_1'], 64, 3,
-                                 pad=1, flip_filters=False)
-    net['pool1'] = MaxPool2DLayer(net['conv1_2'], 2)
-    net['conv2_1'] = Conv2DDNNLayer(net['pool1'], 128, 3,
-                                 pad=1, flip_filters=False)
-    net['conv2_2'] = Conv2DDNNLayer(net['conv2_1'], 128, 3,
-                                 pad=1, flip_filters=False)
-    net['pool2'] = MaxPool2DLayer(net['conv2_2'], 2)
-    net['conv3_1'] = Conv2DDNNLayer(net['pool2'], 256, 3,
-                                 pad=1, flip_filters=False)
-    net['conv3_2'] = Conv2DDNNLayer(net['conv3_1'], 256, 3,
-                                 pad=1, flip_filters=False)
-    net['conv3_3'] = Conv2DDNNLayer(net['conv3_2'], 256, 3,
-                                 pad=1, flip_filters=False)
-    net['pool3'] = MaxPool2DLayer(net['conv3_3'], 2)
-    net['conv4_1'] = Conv2DDNNLayer(net['pool3'], 512, 3,
-                                 pad=1, flip_filters=False)
-    net['conv4_2'] = Conv2DDNNLayer(net['conv4_1'], 512, 3,
-                                 pad=1, flip_filters=False)
-    net['conv4_3'] = Conv2DDNNLayer(net['conv4_2'], 512, 3,
-                                 pad=1, flip_filters=False)
-    net['pool4'] = MaxPool2DLayer(net['conv4_3'], 2)
-    net['conv5_1'] = Conv2DDNNLayer(net['pool4'], 512, 3,
-                                 pad=1, flip_filters=False)
-    net['conv5_2'] = Conv2DDNNLayer(net['conv5_1'], 512, 3,
-                                 pad=1, flip_filters=False)
-    net['conv5_3'] = Conv2DDNNLayer(net['conv5_2'], 512, 3,
-                                 pad=1, flip_filters=False)
-    net['pool5'] = MaxPool2DLayer(net['conv5_3'], 2)
-    net['fc6'] = DenseLayer(net['pool5'], num_units=4096)
-    net['drop6'] = DropoutLayer(net['fc6'], p=0.5)
-    net['fc7'] = DenseLayer(net['drop6'], num_units=4096)
-    net['drop7'] = DropoutLayer(net['fc7'], p=0.5)
-    net['fc8'] = DenseLayer(net['drop7'], num_units=1000,
-                            nonlinearity=None)
-    net['prob'] = NonlinearityLayer(net['fc8'], lasagne.nonlinearities.softmax)
     return net
 
 
@@ -135,7 +88,7 @@ def download_images(synsets=SYNSETS):
             url = links[i]
             rq = requests.get(url, stream=True)
             if rq.status_code != 200:
-                if  i == len(links) - 1:
+                if i == len(links) - 1:
                     raise ValueError
                 else:
                     continue
@@ -193,8 +146,7 @@ def main():
 
     logger.info('compiling lasagne model...')
     input_var = T.tensor4('inputs')
-    net = get_lasagne_net(input_var)
-    test_prediction = lasagne.layers.get_output(net['prob'], deterministic=True)
+    net = vgg16_base(input_var, w_path=None)
 
     logger.info('converting caffe --> lasagne...')
     convert(net, layers_caffe)
