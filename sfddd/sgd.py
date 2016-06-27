@@ -86,7 +86,7 @@ class SGDSolver(Solver):
                 train_batches += 1
 
             data_v = FileSystemData(Xv, Yv, data_folder, self.batch_size,
-                                    infinite=False, augment=True, shuffle=True)
+                                    infinite=False, augment=False, shuffle=False)
             val_err, val_acc, val_batches = 0, 0, 0
             for batch in tqdm(data_v, total=data_v.steps):
                 inputs, targets = batch

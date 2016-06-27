@@ -72,16 +72,15 @@ class FileSystemData(DataSet):
     def __init__(self, x, y, data_folder,
                  batch_size=1, infinite=False, augment=False, shuffle=False):
         self.indicies = np.arange(len(x))
-        self.start_idx = 0
         self.data_folder = data_folder
         self.augment = augment
         super(FileSystemData, self).__init__(x, y,
                                              batch_size, infinite, shuffle)
 
     def load_batch(self):
-        if self.start_idx > self.n - self.batch_size:
+        if self.current > self.n - self.batch_size:
             raise StopIteration
-        excerpt = self.indicies[self.start_idx:self.start_idx + self.batch_size]
+        excerpt = self.indicies[self.current:self.current + self.batch_size]
 
         fnames = self.x[excerpt]
         X = []
@@ -94,8 +93,8 @@ class FileSystemData(DataSet):
         X = np.array(X)
         if self.augment:
             X = augment_batch(X, resize_only=False)
-        else:
-            X = augment_batch(X, resize_only=True)
+        # else:
+        #     X = augment_batch(X, resize_only=True)
 
         self.current += self.batch_size
 

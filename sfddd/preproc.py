@@ -86,7 +86,7 @@ def load_test(imgs_folder):
     path = os.path.join(imgs_folder, 'test')
     for fn in get_test_images(path):
         X.append(fn)
-        fnames.append(fn)
+        fnames.append(os.path.split(fn)[-1])
     logger.info("Loaded %d images" % len(X))
 
     X = np.array(X)

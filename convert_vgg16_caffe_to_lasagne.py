@@ -74,7 +74,7 @@ def convert(net, layers_caffe):
             continue
 
 
-def download_images(synsets=SYNSETS):
+def download_images(mdl, synsets=SYNSETS):
     imgs = []
     base_url = 'http://www.image-net.org/api/text/imagenet.synset.geturls?wnid='
     for s in synsets:
@@ -96,9 +96,13 @@ def download_images(synsets=SYNSETS):
                 img = Image.open(StringIO(rq.content))
                 img = np.array(img)
                 img = img[:, :, ::-1]
-                img = cv2.resize(img, (224, 224))
+
                 img = img.transpose((2, 0, 1))
-                img = img - MEAN_VALUE
+                img = mdl.preprocess(img)
+
+                # img = cv2.resize(img, (224, 224))
+                # img = img.transpose((2, 0, 1))
+                # img = img - MEAN_VALUE
                 imgs.append(img)
                 break
             except IndexError:
@@ -147,13 +151,13 @@ def main():
     logger.info('compiling lasagne model...')
     input_var = T.tensor4('inputs')
     model = Vgg16Base(input_var, w_path=None)
-    net = Vgg16Base.net
+    net = model.net
 
     logger.info('converting caffe --> lasagne...')
     convert(net, layers_caffe)
 
     logger.info('downloading test images...')
-    imgs = download_images()
+    imgs = download_images(model)
 
     logger.info('validating converted model...')
     check_output(net, net_caffe, imgs, LABELS)
