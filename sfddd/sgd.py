@@ -79,7 +79,7 @@ class SGDSolver(Solver):
             train_err, train_batches = 0, 0
             data_s = FileSystemData(Xs, Ys, data_folder, self.batch_size,
                                     infinite=False, augment=True, shuffle=True)
-            for batch in tqdm(data_s, total=data_s.steps):
+            for batch in tqdm(data_s, total=data_s.steps, leave=False):
                 inputs, targets = batch
                 inputs = floatX(np.array([mdl.preprocess(x) for x in inputs]))
                 train_err += train_fn(inputs, targets)
@@ -88,7 +88,7 @@ class SGDSolver(Solver):
             data_v = FileSystemData(Xv, Yv, data_folder, self.batch_size,
                                     infinite=False, augment=False, shuffle=False)
             val_err, val_acc, val_batches = 0, 0, 0
-            for batch in tqdm(data_v, total=data_v.steps):
+            for batch in tqdm(data_v, total=data_v.steps, leave=False):
                 inputs, targets = batch
                 inputs = floatX(np.array([mdl.preprocess(x) for x in inputs]))
                 err, acc = val_fn(inputs, targets)
@@ -125,7 +125,7 @@ class SGDSolver(Solver):
         logger.info('Predicting on test set...')
         pred = []
         data_t = FileSystemData(Xt, None, data_folder, batch_size=batchsize)
-        for batch in tqdm(data_t, total=data_t.steps):
+        for batch in tqdm(data_t, total=data_t.steps, leave=False):
             inputs, _ = batch
             inputs = floatX(np.array([mdl.preprocess(x) for x in inputs]))
             pred.extend(pred_fn(inputs))
