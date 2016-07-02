@@ -204,3 +204,49 @@ class SGDSolver(Solver):
         pred = np.array(pred)
         logger.info('pred shape: (%d, %d)' % pred.shape)
         return pred
+
+
+class Predictor(Solver):
+
+    def __init__(self, batch_size=2):
+        super(Predictor, self).__init__(None, None, None, None)
+        self.batch_size = batch_size
+
+    @staticmethod
+    def _compile(mdl):
+        input_var = mdl.input_var
+        net = mdl.get_output_layer()
+
+        test_prediction = lasagne.layers.get_output(net, deterministic=True)
+
+        logger.info("Compiling network functions...")
+        predict_proba = theano.function([input_var], test_prediction)
+        return predict_proba
+
+    @staticmethod
+    def _load_snapshot(mdl, fp):
+        logger.info("loading snapshot: %s" % fp)
+        with np.load(fp) as f:
+            param_values = [f['arr_%d' % i] for i in range(len(f.files))]
+        net = mdl.get_output_layer()
+        lasagne.layers.set_all_param_values(net, param_values)
+
+
+    def predict(self, Xt, mdl, snapshot=None, data_folder='data/'):
+        data_folder = os.path.join(data_folder, 'imgs/', 'test/')
+
+        pred_fn = self._compile(mdl)
+        if snapshot:
+            self._load_snapshot(mdl, snapshot)
+
+        logger.info('Predicting on test set...')
+        pred = []
+        data_t = FileSystemData(Xt, None, data_folder,
+                                batch_size=self.batch_size)
+        for batch in tqdm(data_t, total=data_t.steps, leave=False):
+            inputs, _ = batch
+            inputs = floatX(np.array([mdl.preprocess(x) for x in inputs]))
+            pred.extend(pred_fn(inputs))
+        pred = np.array(pred)
+        logger.info('pred shape: (%d, %d)' % pred.shape)
+        return pred
