@@ -1,3 +1,4 @@
+from collections import OrderedDict
 import logging
 import os
 import time
@@ -27,6 +28,51 @@ class Solver(object):
         raise NotImplementedError
 
 
+def init_adam(grads, params):
+    """ Modified from lasagne.updates.adam """
+    all_grads = grads
+    t_prev = theano.shared(floatX(0.))
+
+    m_prev_list = []
+    u_prev_list = []
+    for param, g_t in zip(params, all_grads):
+        value = param.get_value(borrow=True)
+        m_prev = theano.shared(np.zeros(value.shape, dtype=value.dtype),
+                               broadcastable=param.broadcastable)
+        u_prev = theano.shared(np.zeros(value.shape, dtype=value.dtype),
+                               broadcastable=param.broadcastable)
+
+        m_prev_list.append(m_prev)
+        u_prev_list.append(u_prev)
+
+    return t_prev, m_prev_list, u_prev_list
+
+
+def step_adam(grads, params, t_prev, m_prev_list, v_prev_list,
+              learning_rate=0.001, beta1=0.9, beta2=0.999, epsilon=1e-8):
+    """ Modified from lasagne.updates.adam """
+    updates = OrderedDict()
+
+    # Using numpy constant to prevent upcasting of float32
+    one = floatX(np.array(1))
+
+    t = t_prev.get_value() + 1
+    a_t = learning_rate*np.sqrt(one-beta2**t)/(one-beta1**t)
+
+    for param, g_t, m_prev, v_prev in \
+            zip(params, grads, m_prev_list, v_prev_list):
+        m_t = beta1*m_prev.get_value() + (one-beta1)*g_t
+        v_t = beta2*v_prev.get_value() + (one-beta2)*g_t**2
+        step = a_t*m_t/(np.sqrt(v_t) + epsilon)
+
+        updates[m_prev] = m_t
+        updates[v_prev] = v_t
+        updates[param] = param.get_value() - step
+
+    updates[t_prev] = t
+    return updates
+
+
 class SGDSolver(Solver):
 
     # TODO apply updates only at iter_size
@@ -49,7 +95,8 @@ class SGDSolver(Solver):
         loss = loss.mean()
 
         params = lasagne.layers.get_all_params(net, trainable=True)
-        updates = lasagne.updates.adam(loss, params, learning_rate=self.base_lr)
+
+        grads = T.grad(loss, params)
 
         test_prediction = lasagne.layers.get_output(net, deterministic=True)
         test_loss = lasagne.objectives. \
@@ -59,7 +106,8 @@ class SGDSolver(Solver):
                           dtype=theano.config.floatX)
 
         logger.info("Compiling network functions...")
-        train_fn = theano.function([input_var, target_var], loss, updates=updates)
+        grads_fn = theano.function([input_var, target_var], grads)
+        train_fn = theano.function([input_var, target_var], loss)
         val_fn = theano.function([input_var, target_var], [test_loss, test_acc])
         predict_proba = theano.function([input_var], test_prediction)
 
@@ -74,16 +122,40 @@ class SGDSolver(Solver):
         if not os.path.exists(out_folder):
             os.makedirs(out_folder)
 
+        steps = 0
         for epoch in range(epochs):
             start_time = time.time()
             train_err, train_batches = 0, 0
             data_s = FileSystemData(Xs, Ys, data_folder, self.batch_size,
                                     infinite=False, augment=True, shuffle=True)
+            step_err, step_g = 0, None
+
             for batch in tqdm(data_s, total=data_s.steps, leave=False):
                 inputs, targets = batch
                 inputs = floatX(np.array([mdl.preprocess(x) for x in inputs]))
-                train_err += train_fn(inputs, targets)
+
+                batch_err = train_fn(inputs, targets)
+                batch_g = grads_fn(inputs, targets)
+
+                if step_g is None:
+                    step_g = batch_g
+                else:
+                    step_g = [s_g + b_g for s_g, b_g in zip(step_g, batch_g)]
+                train_err += batch_err
+                step_err += batch_err
                 train_batches += 1
+                if train_batches % self.iter_size == 0:
+                    step_g = [g / np.array(self.iter_size) for g in step_g]
+
+                    if steps == 0:
+                        t_prev, m_prev, u_prev = \
+                            init_adam(batch_g, params)
+                    updates = step_adam(step_g, params, t_prev, m_prev, u_prev,
+                                        learning_rate=self.base_lr)
+                    for p, new_val in updates.items():
+                        p.set_value(new_val)
+                    steps += 1
+                    step_err, step_g = 0, None
 
             data_v = FileSystemData(Xv, Yv, data_folder, self.batch_size,
                                     infinite=False, augment=False, shuffle=False)

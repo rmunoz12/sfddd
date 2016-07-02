@@ -37,8 +37,8 @@ def main():
         logger.error("Unrecognized model name: %s" % config.model)
         raise ValueError(config.model)
 
-    solver = SGDSolver(max_iter=len(data['Xs']) * 6,
-                       batch_size=24, iter_size=24, base_lr=0.0001)
+    solver = SGDSolver(max_iter=len(data['Xs']) * 20,
+                       batch_size=16, iter_size=32, base_lr=0.00001)
 
     pred_fn = solver.train(data['Xs'], data['Ys'], data['Xv'], data['Yv'], mdl)
     pred = solver.predict(data['Xt'], pred_fn, mdl)
